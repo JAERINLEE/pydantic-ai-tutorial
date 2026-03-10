@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notion 시각화 대시보드</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background: #F7F7F5; color: #1a1a1a; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    header { margin-bottom: 32px; }
+    header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    header p { color: #888; font-size: 14px; }
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #333; }
+    .stat-card { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .stat-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .stat-value { font-size: 28px; font-weight: 700; }
+    .stat-change { font-size: 12px; margin-top: 4px; }
+    .stat-change.up { color: #16a34a; }
+    .stat-change.down { color: #dc2626; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-blue { background: #D3E5FF; color: #1E40AF; }
+    .badge-green { background: #D4EDDA; color: #166534; }
+    .badge-yellow { background: #FFF3CC; color: #92400E; }
+    .badge-red { background: #FFD5D5; color: #991B1B; }
+    .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .table th { text-align: left; padding: 8px 12px; color: #888; font-weight: 500; border-bottom: 1px solid #f0f0f0; }
+    .table td { padding: 10px 12px; border-bottom: 1px solid #f8f8f8; }
+    .table tr:last-child td { border-bottom: none; }
+    .progress-bar { height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    @media (max-width: 768px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📊 Notion 시각화 대시보드</h1>
+      <p>Notion DB 연동 · 마지막 업데이트: <span id="updateTime"></span></p>
+    </header>
+
+    <!-- 요약 통계 카드 (4개) -->
+    <div class="grid grid-4" style="margin-bottom: 16px;" id="statsGrid">
+      <!-- JS로 동적 생성 -->
+    </div>
+
+    <!-- 메인 콘텐츠 그리드 -->
+    <div class="grid grid-2">
+      <!-- 항목 목록 테이블 -->
+      <div class="card">
+        <div class="card-title">📋 항목 목록</div>
+        <table class="table" id="itemsTable">
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>상태</th>
+              <th>진행률</th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody">
+            <!-- 동적 생성 -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 상태 분포 -->
+      <div class="card">
+        <div class="card-title">🎯 상태 분포</div>
+        <div id="statusChart"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ✏️ 이 부분을 Notion 데이터로 교체
+    const NOTION_DATA = {
+      title: "프로젝트 현황",
+      stats: [
+        { label: "전체 항목", value: "24", change: "+3", direction: "up" },
+        { label: "진행중", value: "8", change: "+1", direction: "up" },
+        { label: "완료", value: "12", change: "+2", direction: "up" },
+        { label: "완료율", value: "50%", change: "+8%", direction: "up" },
+      ],
+      items: [
+        { name: "기능 개발 A", status: "진행중", progress: 70 },
+        { name: "디자인 리뷰", status: "완료", progress: 100 },
+        { name: "QA 테스트", status: "예정", progress: 0 },
+        { name: "배포 준비", status: "진행중", progress: 40 },
+      ],
+      statusDistribution: [
+        { label: "완료", count: 12, color: "#4ECDC4" },
+        { label: "진행중", count: 8, color: "#4F86F7" },
+        { label: "예정", count: 4, color: "#E8E8E8" },
+      ],
+    };
+
+    // 날짜 표시
+    document.getElementById("updateTime").textContent = new Date().toLocaleString("ko-KR");
+
+    // 통계 카드 렌더링
+    const statsGrid = document.getElementById("statsGrid");
+    NOTION_DATA.stats.forEach(stat => {
+      const card = document.createElement("div");
+      card.className = "stat-card";
+      card.innerHTML = `
+        <div class="stat-label">${stat.label}</div>
+        <div class="stat-value">${stat.value}</div>
+        <div class="stat-change ${stat.direction}">${stat.direction === "up" ? "▲" : "▼"} ${stat.change}</div>
+      `;
+      statsGrid.appendChild(card);
+    });
+
+    // 항목 테이블 렌더링
+    const statusBadgeClass = { "완료": "badge-green", "진행중": "badge-blue", "예정": "badge-yellow", "지연": "badge-red" };
+    const itemsBody = document.getElementById("itemsBody");
+    NOTION_DATA.items.forEach(item => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${item.name}</td>
+        <td><span class="badge ${statusBadgeClass[item.status] || "badge-blue"}">${item.status}</span></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="progress-bar" style="flex:1">
+              <div class="progress-fill" style="width:${item.progress}%;background:#4F86F7"></div>
+            </div>
+            <span style="font-size:12px;color:#888;min-width:30px">${item.progress}%</span>
+          </div>
+        </td>
+      `;
+      itemsBody.appendChild(row);
+    });
+
+    // 상태 분포 차트 렌더링 (간단한 바 차트)
+    const statusChart = document.getElementById("statusChart");
+    const total = NOTION_DATA.statusDistribution.reduce((s, d) => s + d.count, 0);
+    NOTION_DATA.statusDistribution.forEach(item => {
+      const pct = Math.round(item.count / total * 100);
+      statusChart.innerHTML += `
+        <div style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px">
+            <span>${item.label}</span>
+            <span style="color:#888">${item.count}개 (${pct}%)</span>
+          </div>
+          <div class="progress-bar" style="height:12px">
+            <div class="progress-fill" style="width:${pct}%;background:${item.color}"></div>
+          </div>
+        </div>
+      `;
+    });
+  </script>
+</body>
+</html>

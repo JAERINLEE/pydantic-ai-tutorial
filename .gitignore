@@ -94,3 +94,9 @@ target/
 
 # exclude data from source control by default
 # /data/
+
+# LINE WORKS auth state (contains session cookies)
+data/.auth_state.json
+
+# Downloaded board attachments
+data/board_attachments/
