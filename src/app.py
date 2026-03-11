@@ -11,6 +11,18 @@ import sys
 import threading
 from pathlib import Path
 
+# ── sniffio 패치 (모든 import보다 먼저 실행) ──
+# Streamlit Cloud(uvloop)에서 sniffio가 비동기 백엔드를 감지하지 못하는 문제를 해결.
+# 이 패치는 어떤 라이브러리가 import되기 전에 적용되어야 한다.
+import sniffio
+_sniffio_original = sniffio.current_async_library
+def _patched_sniffio():
+    try:
+        return _sniffio_original()
+    except sniffio.AsyncLibraryNotFoundError:
+        return "asyncio"
+sniffio.current_async_library = _patched_sniffio
+
 import nest_asyncio
 import streamlit as st
 
