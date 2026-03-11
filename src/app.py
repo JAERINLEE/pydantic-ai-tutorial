@@ -23,16 +23,23 @@ def _patched_sniffio():
         return "asyncio"
 sniffio.current_async_library = _patched_sniffio
 
-nest_asyncio.apply()
 
-
-def run_async(coro):
-    """이벤트 루프에서 코루틴을 실행한다 (nest_asyncio로 중첩 허용)."""
+def _get_or_create_loop():
+    """이벤트 루프를 가져오거나 새로 생성하고 nest_asyncio를 적용한다."""
     try:
-        loop = asyncio.get_running_loop()
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+    nest_asyncio.apply(loop)
+    return loop
+
+
+def run_async(coro):
+    """이벤트 루프에서 코루틴을 실행한다."""
+    loop = _get_or_create_loop()
     return loop.run_until_complete(coro)
 
 # src 디렉토리를 path에 추가
