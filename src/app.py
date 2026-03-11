@@ -10,19 +10,29 @@ import re
 import sys
 from pathlib import Path
 
-# Streamlit Cloud는 uvloop을 사용하는데, sniffio가 이를 감지하지 못하는 문제가 있음.
-# 표준 asyncio 정책으로 강제 전환 후 nest_asyncio를 적용한다.
-asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
-
 import nest_asyncio
+import sniffio
 import streamlit as st
+
+# Streamlit Cloud(uvloop)에서 sniffio가 비동기 백엔드를 감지하지 못하는 문제 패치
+_sniffio_original = sniffio.current_async_library
+def _patched_sniffio():
+    try:
+        return _sniffio_original()
+    except sniffio.AsyncLibraryNotFoundError:
+        return "asyncio"
+sniffio.current_async_library = _patched_sniffio
 
 nest_asyncio.apply()
 
 
 def run_async(coro):
-    """현재 이벤트 루프에서 코루틴을 실행한다 (nest_asyncio로 중첩 허용)."""
-    loop = asyncio.get_event_loop()
+    """이벤트 루프에서 코루틴을 실행한다 (nest_asyncio로 중첩 허용)."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro)
 
 # src 디렉토리를 path에 추가
