@@ -8,26 +8,22 @@ PydanticAI 에이전트를 활용한 대화형 FAQ 챗봇 인터페이스.
 import asyncio
 import re
 import sys
-import threading
 from pathlib import Path
+
+# Streamlit Cloud는 uvloop을 사용하는데, sniffio가 이를 감지하지 못하는 문제가 있음.
+# 표준 asyncio 정책으로 강제 전환 후 nest_asyncio를 적용한다.
+asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
 import nest_asyncio
 import streamlit as st
 
-# 중첩 이벤트 루프 허용 (Streamlit Cloud uvloop 환경 포함)
 nest_asyncio.apply()
-
-# 별도 스레드에 영구 이벤트 루프 운영
-_bg_loop = asyncio.new_event_loop()
-nest_asyncio.apply(_bg_loop)
-_bg_thread = threading.Thread(target=_bg_loop.run_forever, daemon=True)
-_bg_thread.start()
 
 
 def run_async(coro):
-    """영구 이벤트 루프에서 코루틴을 실행한다. TCP 연결이 루프와 함께 유지된다."""
-    future = asyncio.run_coroutine_threadsafe(coro, _bg_loop)
-    return future.result()
+    """현재 이벤트 루프에서 코루틴을 실행한다 (nest_asyncio로 중첩 허용)."""
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(coro)
 
 # src 디렉토리를 path에 추가
 sys.path.insert(0, str(Path(__file__).resolve().parent))
