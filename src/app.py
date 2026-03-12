@@ -6,7 +6,6 @@ PydanticAI 에이전트를 활용한 대화형 FAQ 챗봇 인터페이스.
 """
 
 import asyncio
-import re
 import sys
 import threading
 from pathlib import Path
@@ -255,39 +254,6 @@ section[data-testid="stSidebar"] { display: none; }
     -webkit-line-clamp: 2 !important;
 }
 
-/* 라디오 버튼 — 카드형 스타일 */
-div[data-testid="stRadio"] > label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #37352f;
-    margin-bottom: 8px;
-}
-div[data-testid="stRadio"] [role="radiogroup"] {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-div[data-testid="stRadio"] [role="radiogroup"] label {
-    background: #f7f6f3;
-    border: 1.5px solid #e9e9e7;
-    border-radius: 8px;
-    padding: 10px 14px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    font-size: 0.88rem;
-    color: #37352f;
-}
-div[data-testid="stRadio"] [role="radiogroup"] label:hover {
-    background: #efeee9;
-    border-color: #d3d3d0;
-}
-div[data-testid="stRadio"] [role="radiogroup"] label[data-checked="true"],
-div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {
-    background: #e8e3ff;
-    border-color: #6c5ce7;
-    color: #4a3cb5;
-    font-weight: 500;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -372,39 +338,6 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "pydantic_history" not in st.session_state:
     st.session_state.pydantic_history = []
-if "pending_selection" not in st.session_state:
-    st.session_state.pending_selection = None
-
-
-def parse_choices(text: str) -> list[str]:
-    """에이전트 답변에서 번호 목록 선택지를 추출한다.
-
-    '1. 항목', '1) 항목', '- 항목' 패턴을 인식하며,
-    선택을 요청하는 문맥이 있을 때만 추출한다.
-    """
-    # 선택을 유도하는 키워드가 없으면 무시
-    choice_keywords = ["선택", "어떤", "골라", "알려주세요", "원하시", "궁금"]
-    if not any(kw in text for kw in choice_keywords):
-        return []
-
-    # 번호 목록 추출: "1. ...", "1) ...", "- ..." 등
-    patterns = [
-        r'^\s*\d+[.)]\s*(.+)$',       # 1. 또는 1)
-        r'^\s*[-*]\s*\*?\*?(.+?)(?:\*?\*?)$',  # - 또는 * (볼드 마크다운 제거)
-    ]
-    choices = []
-    for line in text.split("\n"):
-        for pat in patterns:
-            m = re.match(pat, line.strip())
-            if m:
-                item = m.group(1).strip().strip("*").strip()
-                if item and len(item) > 2:
-                    choices.append(item)
-                break
-
-    return choices if len(choices) >= 2 else []
-
-
 def resolve_image_path(img_path: str) -> Path:
     """이미지 경로를 절대 경로로 해석한다."""
     p = Path(img_path)
@@ -483,43 +416,9 @@ for idx, msg in enumerate(st.session_state.messages):
                 render_ref_panel(msg["references"])
             elif msg.get("images"):
                 render_images_from_history(msg["images"])
-            # 선택지가 있었던 메시지 (마지막 assistant 메시지만 radio 표시)
-            if msg.get("choices") and idx == len(st.session_state.messages) - 1:
-                choices = msg["choices"]
-                selected = st.radio(
-                    "항목을 선택해주세요:",
-                    choices,
-                    key=f"select_{idx}",
-                )
-                if st.button("선택 완료", key=f"btn_{idx}"):
-                    st.session_state.pending_selection = selected
-                    st.rerun()
 
-# chat_input은 항상 호출하여 입력창이 사라지지 않도록 한다
-chat_input_text = st.chat_input("질문을 입력하세요...")
-
-# 셀렉트박스 선택 처리
-if st.session_state.pending_selection:
-    prompt = f"{st.session_state.pending_selection}에 대해 자세히 알려줘"
-    st.session_state.pending_selection = None
-    # 이전 메시지의 choices 제거 (selectbox 숨김)
-    if st.session_state.messages and st.session_state.messages[-1].get("choices"):
-        st.session_state.messages[-1]["choices"] = None
+if prompt := st.chat_input("질문을 입력하세요..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    _has_input = True
-elif chat_input_text:
-    prompt = chat_input_text
-    _has_input = True
-else:
-    _has_input = False
-
-if _has_input:
-    # pending_selection 경로에서는 이미 append 했으므로 chat_input 경로만 추가
-    if not any(
-        m["role"] == "user" and m["content"] == prompt
-        for m in st.session_state.messages[-1:]
-    ):
-        st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
@@ -567,16 +466,9 @@ if _has_input:
             if existing:
                 image_groups.append({"title": r["title"], "paths": existing})
 
-        # 선택지 감지
-        choices = parse_choices(answer)
-
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer,
         "references": search_results,
         "images": image_groups,
-        "choices": choices,
     })
-    # 선택지가 있으면 rerun하여 히스토리 루프에서 selectbox 렌더링
-    if choices:
-        st.rerun()
