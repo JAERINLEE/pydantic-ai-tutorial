@@ -1,81 +1,256 @@
-# Introduction
+# 엘루오 도우미 — Hybrid RAG 챗봇
 
-This repository contains examples and explanations of how to use [PydanticAI](https://ai.pydantic.dev/) - a Python Agent Framework designed to make it easier to build production-grade applications with Generative AI.
+사내 규정·업무가이드, 회사 소개·프로젝트 등 궁금한 점을 질문할 수 있는 AI 챗봇입니다.
 
-## 👋🏻 About Me
+PydanticAI 에이전트 + 벡터 검색(Pinecone) + 지식그래프(NetworkX)를 결합한 **Hybrid RAG** 아키텍처로 구현되었습니다.
 
-Hi there! I’m Dave Ebbelaar, founder of Datalumina®, and I’m passionate about helping data professionals and developers like you succeed in the world of data science and AI. If you enjoy the tutorial, make sure to check out the links below for more resources to help you grow.
+---
 
-At [Datalumina](https://www.datalumina.com/), we help individuals and businesses unlock the full potential of AI and data by turning complexity into capability. Whether you're learning Python, freelancing, or building cutting-edge AI apps, we provide the tools, guidance, and expertise to help you succeed.
+## 시스템 아키텍처
 
-### 📚 Explore More Resources
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           DATA SOURCES                                 │
+│                                                                        │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────┐  │
+│  │  LINE WORKS FAQ  │  │  사내 게시판      │  │  eluocnc.com 웹사이트 │  │
+│  │  (sitemap.xml)   │  │  (board.works     │  │  (sitemap + AJAX)    │  │
+│  │                  │  │   mobile.com)     │  │                      │  │
+│  └────────┬─────────┘  └────────┬─────────┘  └──────────┬───────────┘  │
+│           │                     │                        │              │
+│  ┌────────▼─────────┐  ┌───────▼──────────┐  ┌─────────▼───────────┐  │
+│  │  faq_scraper.py  │  │ board_scraper.py │  │ eluocnc_scraper.py  │  │
+│  │  (BeautifulSoup) │  │ (Playwright +    │  │ (requests +         │  │
+│  │                  │  │  file_extractor)  │  │  BeautifulSoup)     │  │
+│  └────────┬─────────┘  └───────┬──────────┘  └─────────┬───────────┘  │
+└───────────┼─────────────────────┼────────────────────────┼──────────────┘
+            │                     │                        │
+            ▼                     ▼                        ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          DATA STORAGE (JSON)                            │
+│                                                                        │
+│   faq_lineworks.json      board_lineworks.json        eluocnc.json     │
+│                                                                        │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     INDEX BUILD (build_index.py)                        │
+│                                                                        │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    임베딩 모델 (Sentence-Transformers)            │   │
+│  │             paraphrase-multilingual-MiniLM-L12-v2               │   │
+│  └────────────────────┬──────────────────────┬─────────────────────┘   │
+│                       │                      │                         │
+│            ┌──────────▼──────────┐  ┌────────▼────────────────────┐   │
+│            │  Pinecone 벡터 DB   │  │  지식그래프 구축              │   │
+│            │                     │  │  (graph_builder.py)          │   │
+│            │  • 문장 청킹        │  │                              │   │
+│            │    (1000자/200 오버랩)│  │  • Claude Haiku로            │   │
+│            │  • 코사인 유사도    │  │    엔티티/관계 추출           │   │
+│            │  • Serverless       │  │  • 임베딩 기반 중복 병합      │   │
+│            │    (AWS us-east-1)  │  │  • NetworkX 그래프 저장       │   │
+│            │                     │  │                              │   │
+│            └──────────┬──────────┘  └────────┬────────────────────┘   │
+│                       │                      │                         │
+│                       ▼                      ▼                         │
+│            eluo-faq 인덱스          knowledge_graph.json               │
+│            (384차원 벡터)            entity_embeddings.npz              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    HYBRID RAG ENGINE (런타임)                            │
+│                                                                        │
+│                    GraphRAGDatabase (graph_database.py)                 │
+│                                                                        │
+│  ┌────────────────────┐              ┌────────────────────────────┐   │
+│  │  벡터 검색          │              │  그래프 검색                 │   │
+│  │  (Pinecone)        │              │  (NetworkX)                 │   │
+│  │                    │              │                             │   │
+│  │  쿼리 임베딩 →     │              │  쿼리 → 유사 엔티티 매칭 →  │   │
+│  │  cosine similarity │              │  1-2홉 그래프 탐색 →        │   │
+│  │  → top-K 문서      │              │  연결 문서 발견             │   │
+│  └─────────┬──────────┘              └──────────────┬─────────────┘   │
+│            │                                        │                  │
+│            └─────────────┬──────────────────────────┘                  │
+│                          ▼                                             │
+│              Reciprocal Rank Fusion (RRF)                              │
+│              score = Σ 1/(60 + rank_i)                                 │
+│                          │                                             │
+│                          ▼                                             │
+│                   병합된 검색 결과                                       │
+└──────────────────────────┬──────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      AI AGENT (faq_agent.py)                           │
+│                                                                        │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                 PydanticAI Agent                                 │   │
+│  │                 Model: Claude Sonnet 4                           │   │
+│  │                                                                  │   │
+│  │  Tools:                                                          │   │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌────────────────────────┐  │   │
+│  │  │ search_faq   │ │ list_titles  │ │ get_item_detail        │  │   │
+│  │  │ (의미 검색)   │ │ (목록 조회)   │ │ (상세 조회)             │  │   │
+│  │  └──────────────┘ └──────────────┘ └────────────────────────┘  │   │
+│  │  ┌──────────────┐ ┌──────────────┐                             │   │
+│  │  │get_data_stats│ │explore_topic │                             │   │
+│  │  │ (통계 조회)   │ │ (그래프 탐색) │                             │   │
+│  │  └──────────────┘ └──────────────┘                             │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└──────────────────────────┬──────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      STREAMLIT UI (app.py)                              │
+│                                                                        │
+│  ┌────────────────────────────────────────────────────────┐            │
+│  │                    💬 엘루오 도우미                      │            │
+│  │                                                        │            │
+│  │  ┌──────────────────────────────────────────────────┐  │            │
+│  │  │  채팅 인터페이스                                   │  │            │
+│  │  │  • 스트리밍 응답 (run_stream_events)              │  │            │
+│  │  │  • 대화 히스토리 유지                              │  │            │
+│  │  │  • OpenGraph 카드 렌더링 (og_cards.py)            │  │            │
+│  │  │  • BadRequest 폴백 (히스토리 없이 재시도)          │  │            │
+│  │  └──────────────────────────────────────────────────┘  │            │
+│  │                                                        │            │
+│  │  비동기 런타임 (async_runtime.py)                       │            │
+│  │  • 백그라운드 asyncio 루프 (Streamlit 호환)             │            │
+│  │  • sniffio 패치 (uvloop 환경 대응)                     │            │
+│  └────────────────────────────────────────────────────────┘            │
+│                                                                        │
+│  ┌────────────────────────────────────────────────────────┐            │
+│  │  📄 문서 관리 (pages/admin.py)                         │            │
+│  │  • 문서 업로드 → 청킹 → Pinecone upsert               │            │
+│  │  • 문서 삭제 (벡터 단건 관리)                           │            │
+│  └────────────────────────────────────────────────────────┘            │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-Whether you're a learner, a freelancer, or a business looking for AI expertise, we've got something for you:
+---
 
-1. **Learning Python for AI and Data Science?**  
-   Join our **free community, Data Alchemy**, where you’ll find resources, tutorials, and support:  
-   [▶︎ Data Alchemy on Skool](https://www.skool.com/data-alchemy)
+## 디렉토리 구조
 
-2. **Ready to start or scale your freelancing career?**  
-   Learn how to land clients and grow your business with the **Data Freelancer program**:  
-   [▶︎ Data Freelancer](https://www.datalumina.com/data-freelancer)
+```
+├── src/
+│   ├── app.py                      # Streamlit 메인 챗봇 UI
+│   ├── agent/
+│   │   ├── faq_agent.py            # PydanticAI 에이전트 + 도구 정의
+│   │   └── graph_database.py       # GraphRAG 하이브리드 검색 엔진
+│   ├── graph/
+│   │   ├── build_index.py          # Pinecone + 지식그래프 빌드 스크립트
+│   │   ├── embedding_index.py      # 임베딩 생성 + Pinecone 연동
+│   │   ├── graph_builder.py        # Claude 기반 엔티티 추출 + NetworkX 그래프
+│   │   └── ingest.py               # 단건 문서 인제스트 파이프라인
+│   ├── scraper/
+│   │   ├── faq_scraper.py          # LINE WORKS FAQ 크롤러
+│   │   ├── board_scraper.py        # 사내 게시판 크롤러 (Playwright)
+│   │   ├── eluocnc_scraper.py      # 회사 웹사이트 크롤러
+│   │   └── file_extractor.py       # 첨부파일 텍스트 추출 (PDF/DOCX/XLSX/HWP)
+│   ├── pages/
+│   │   └── admin.py                # 문서 관리 어드민 페이지
+│   └── ui/
+│       ├── async_runtime.py        # Streamlit 비동기 런타임 호환 레이어
+│       ├── og_cards.py             # OpenGraph 카드 렌더링
+│       └── static/                 # CSS, JS 정적 파일
+├── data/
+│   ├── board_lineworks.json        # 게시판 크롤링 데이터
+│   ├── eluocnc.json                # 웹사이트 크롤링 데이터
+│   ├── knowledge_graph.json        # 지식그래프 (NetworkX JSON)
+│   ├── entity_embeddings.npz       # 사전 계산 엔티티 임베딩
+│   └── extraction_cache/           # Claude 엔티티 추출 캐시
+├── requirements.txt
+└── .env                            # API 키 (ANTHROPIC, PINECONE, etc.)
+```
 
-3. **Need expert help on your next project?**  
-   Work with me and my team to solve your data and AI challenges:  
-   [▶︎ Consulting Services](https://www.datalumina.com/solutions)
+---
 
-4. **Building AI-powered applications?**  
-   Access the **GenAI Launchpad** to accelerate your AI app development:  
-   [▶︎ GenAI Launchpad](https://launchpad.datalumina.com/)
+## 데이터 파이프라인
 
-## Introduction to PydanticAI
+```
+┌──────────┐     ┌──────────┐     ┌──────────┐
+│ 크롤링    │ ──▶ │ JSON 저장 │ ──▶ │ 인덱스    │
+│          │     │          │     │ 빌드     │
+└──────────┘     └──────────┘     └──────────┘
+                                       │
+                          ┌────────────┼────────────┐
+                          ▼            ▼            ▼
+                   ┌───────────┐ ┌──────────┐ ┌──────────┐
+                   │ Pinecone  │ │ 지식     │ │ 엔티티    │
+                   │ 벡터 DB   │ │ 그래프   │ │ 임베딩    │
+                   └───────────┘ └──────────┘ └──────────┘
+```
 
-PydanticAI is a Python Agent Framework created by the team behind Pydantic, designed to streamline the development of production-grade applications with Generative AI. Building on the success and widespread adoption of Pydantic in the Python AI ecosystem, PydanticAI offers a type-safe, model-agnostic approach that seamlessly integrates with popular LLM providers like OpenAI, Gemini, and Groq. The framework emphasizes developer ergonomics by combining structured response validation, streamed responses, and a dependency injection system, all while allowing developers to leverage standard Python development practices for control flow and agent composition.
+### 1단계: 크롤링
 
-### Pydantic AI Core Concepts
+| 크롤러 | 대상 | 방식 | 출력 |
+|--------|------|------|------|
+| `faq_scraper.py` | LINE WORKS FAQ | sitemap → BeautifulSoup | `faq_lineworks.json` |
+| `board_scraper.py` | 사내 게시판 | Playwright 로그인 자동화 + 첨부파일 추출 | `board_lineworks.json` |
+| `eluocnc_scraper.py` | 회사 웹사이트 | sitemap + AJAX → BeautifulSoup | `eluocnc.json` |
 
-1. [Agents](https://ai.pydantic.dev/agents/): The primary interface for interacting with LLMs, allowing you to define system prompts and manage interactions.
-2. [Dependencies](https://ai.pydantic.dev/dependencies/): A type-safe system for injecting runtime context and accessing external services, making testing and integration easier.
-3. [Results](https://ai.pydantic.dev/results/): Agents can return plain text, structured data, or streamed responses, all validated by Pydantic models.
-4. [Messages and Chat History](https://ai.pydantic.dev/message-history/): Provides access to complete message history and tools for analyzing agent behavior and continuing conversations.
-5. [Testing and Evals](https://ai.pydantic.dev/testing-evals/): Supports unit tests and evaluations to assess model performance and ensure application reliability.
-6. [Debugging and Monitoring](https://ai.pydantic.dev/logfire/): Integrates with Pydantic Logfire for real-time debugging, performance monitoring, and querying of agent runs.
+### 2단계: 인덱스 빌드
 
-### Getting Started
+```bash
+python src/graph/build_index.py              # 전체 빌드
+python src/graph/build_index.py --pinecone   # Pinecone만
+python src/graph/build_index.py --graph      # 지식그래프만
+```
 
-To begin using PydanticAI, follow these steps:
+### 3단계: 챗봇 실행
 
-1. **Python**: Ensure you have Python installed on your system. PydanticAI requires Python 3.9 or later.
+```bash
+streamlit run src/app.py
+```
 
-2. **Install Requirements**: Navigate to the root directory of the repository and install the necessary dependencies by running:
+---
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+## 기술 스택
 
-3. **Set Up Environment Variables**: Copy the provided `.env.example` file to a new file named `.env`. Open the `.env` file and add your OpenAI API key:
+| 영역 | 기술 |
+|------|------|
+| **AI 프레임워크** | PydanticAI |
+| **LLM** | Claude Sonnet 4 (에이전트), Claude Haiku 4.5 (엔티티 추출) |
+| **임베딩** | Sentence-Transformers (`paraphrase-multilingual-MiniLM-L12-v2`, 384차원) |
+| **벡터 DB** | Pinecone Serverless (cosine, AWS us-east-1) |
+| **지식그래프** | NetworkX |
+| **UI** | Streamlit |
+| **크롤링** | BeautifulSoup, Playwright |
+| **파일 추출** | pdfplumber, python-docx, openpyxl, python-hwp |
 
-    ```bash
-    OPENAI_API_KEY=your_openai_api_key_here
-    ```
+---
 
-    Make sure to replace `your_openai_api_key_here` with your actual OpenAI API key.
+## 환경 설정
 
-4. **Run the Introduction Script**: To get a feel for how PydanticAI works, execute the `introduction.py` script:
+`.env.example`을 `.env`로 복사하고 필요한 키를 설정합니다:
 
+```bash
+ANTHROPIC_API_KEY=sk-...       # Claude API (에이전트 + 엔티티 추출)
+PINECONE_API_KEY=...           # Pinecone 벡터 DB
+LINEWORKS_ID=...               # 게시판 크롤러 로그인 (선택)
+LINEWORKS_PW=...               # 게시판 크롤러 로그인 (선택)
+```
 
-This script will guide you through the basic functionalities of PydanticAI, demonstrating how to interact with language models using the framework.
+---
 
-By following these steps, you'll be set up to explore and build applications with PydanticAI. For more detailed examples and documentation, refer to the [PydanticAI documentation](https://ai.pydantic.dev/).
+## 빠른 시작
 
-### Problems I've Encountered
+```bash
+# 1. 의존성 설치
+pip install -r requirements.txt
+playwright install chromium  # 게시판 크롤러 사용 시
 
-PydanticAI is in early beta, and the API is still subject to change. There is still a lot more to do.
+# 2. 데이터 크롤링
+python src/scraper/faq_scraper.py
+python src/scraper/board_scraper.py
+python src/scraper/eluocnc_scraper.py
 
-- **Model Parameters**: Currently, I couldn't find a way to adjust model parameters like temperature.
+# 3. 인덱스 빌드
+python src/graph/build_index.py
 
-- **Message History with Tools**: There is a problem with message history when using tools. The following error occurs:
-
-  ```
-  BadRequestError: Error code: 400 - {'error': {'message': "An assistant message with 'tool_calls' must be followed by tool messages responding to each 'tool_call_id'. The following tool_call_ids did not have response messages: call_KMMn5Bo6wPN3aZosdstleZO2", 'type': 'invalid_request_error', 'param': 'messages.[6].role', 'code': None}}
-  ```
+# 4. 챗봇 실행
+streamlit run src/app.py
+```

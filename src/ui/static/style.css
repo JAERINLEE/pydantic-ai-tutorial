@@ -1,0 +1,356 @@
+/* ═══════════════════════════════════════════════════
+   Eluo 도우미 — Design System CSS
+   Brand: Navy #00007F · Yellow #FEFE01 · Light #F0F0F0
+   Font: Pretendard
+   ═══════════════════════════════════════════════════ */
+
+/* ── Pretendard 웹폰트 ── */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+/* ── Design Tokens ── */
+:root {
+    --brand-yellow: #FEFE01;
+    --brand-navy: #00007F;
+    --brand-light: #F0F0F0;
+
+    --bg: #FAFAF9;
+    --bg-chat: #FFFFFF;
+    --fg: #1A1A2E;
+    --fg-muted: #6B7280;
+    --fg-subtle: #9CA3AF;
+
+    --border: #E5E7EB;
+    --border-light: #F3F4F6;
+
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 127, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 127, 0.06);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 127, 0.08);
+
+    --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Global Reset ── */
+html, body, [class*="css"] {
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Page Background ── */
+.stApp {
+    background:
+        radial-gradient(ellipse 80% 60% at 10% 0%, rgba(0, 0, 127, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 50% at 90% 100%, rgba(254, 254, 1, 0.04) 0%, transparent 50%),
+        var(--bg) !important;
+}
+
+/* ── 사이드바 숨김 ── */
+section[data-testid="stSidebar"] { display: none; }
+[data-testid="collapsedControl"] { display: none; }
+
+/* ── Header 영역 ── */
+.stApp > header { background: transparent !important; }
+
+/* ── Pinecone 연결 뱃지 ── */
+.pinecone-badge {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    z-index: 99999;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all var(--transition);
+}
+.pinecone-badge.connected {
+    background: rgba(220, 252, 231, 0.85);
+    border: 1px solid rgba(134, 239, 172, 0.5);
+    color: #15803d;
+}
+.pinecone-badge.disconnected {
+    background: rgba(254, 226, 226, 0.85);
+    border: 1px solid rgba(252, 165, 165, 0.5);
+    color: #dc2626;
+}
+.pinecone-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.connected .pinecone-dot {
+    background: #22c55e;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+.disconnected .pinecone-dot {
+    background: #ef4444;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ── 웰컴 카드 ── */
+.welcome-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 24px;
+}
+
+.welcome-greeting {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--brand-navy);
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+
+/* ── 채팅 메시지 ── */
+.stChatMessage {
+    border-radius: var(--radius) !important;
+    border: 1px solid transparent !important;
+    transition: all var(--transition);
+}
+
+/* 유저 메시지 */
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+    background: rgba(0, 0, 127, 0.04) !important;
+    border-color: rgba(0, 0, 127, 0.06) !important;
+}
+
+/* 어시스턴트 메시지 */
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
+    background: var(--bg-chat) !important;
+    border-color: var(--border-light) !important;
+    box-shadow: var(--shadow-sm);
+}
+
+/* 아바타 — SVG 커스텀 아이콘 사용, 둥근 사각형 */
+[data-testid="stChatMessage"] img[data-testid="chatAvatarIcon-image"] {
+    border-radius: 8px !important;
+}
+
+/* ── 채팅 입력창 ── */
+[data-testid="stChatInput"] {
+    border-radius: var(--radius) !important;
+}
+[data-testid="stChatInput"] textarea {
+    border-radius: var(--radius) !important;
+    border: 1.5px solid var(--border) !important;
+    background: var(--bg-chat) !important;
+    font-size: 0.92rem !important;
+    padding: 14px 16px !important;
+    transition: border-color var(--transition), box-shadow var(--transition) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+[data-testid="stChatInput"] textarea:focus,
+[data-testid="stChatInput"] textarea:focus-visible,
+[data-testid="stChatInput"] textarea:focus-within {
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-color: transparent !important;
+    caret-color: var(--fg) !important;
+}
+/* Streamlit 기본 포커스 링 완전 제거 */
+[data-testid="stChatInput"] *:focus,
+[data-testid="stChatInput"] *:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+/* Streamlit emotion 포커스 border 제거 */
+[data-testid="stChatInput"] > div {
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+[data-testid="stChatInput"] > div:focus-within {
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+[data-testid="stChatInput"] textarea::placeholder {
+    color: var(--fg-subtle) !important;
+    font-weight: 400;
+}
+
+/* 전송 버튼 */
+[data-testid="stChatInput"] button {
+    background: var(--brand-navy) !important;
+    color: var(--brand-yellow) !important;
+    border-radius: 8px !important;
+    transition: all var(--transition) !important;
+}
+[data-testid="stChatInput"] button:hover {
+    opacity: 0.88;
+    transform: scale(1.04);
+}
+
+/* ── OpenGraph 링크 카드 ── */
+.og-card {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin: 10px 0;
+    background: var(--bg-chat);
+    text-decoration: none;
+    color: inherit;
+    transition: all var(--transition);
+    max-height: 120px;
+}
+.og-card:hover {
+    border-color: rgba(0, 0, 127, 0.15);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+.og-card-img {
+    width: 120px;
+    min-width: 120px;
+    object-fit: cover;
+    background: var(--brand-light);
+}
+.og-card-body {
+    padding: 12px 16px;
+    overflow: hidden;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.og-card-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--fg);
+    margin: 0 0 4px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.og-card-desc {
+    font-size: 0.78rem;
+    color: var(--fg-muted);
+    margin: 0 0 6px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+}
+.og-card-url {
+    font-size: 0.68rem;
+    color: var(--fg-subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Callout 박스 ── */
+.callout {
+    background: linear-gradient(135deg, rgba(0, 0, 127, 0.02), rgba(254, 254, 1, 0.03));
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    margin: 10px 0;
+    border-left: 3px solid var(--brand-navy);
+    font-size: 0.88rem;
+    color: var(--fg);
+}
+.callout-icon {
+    margin-right: 8px;
+    font-size: 1.05rem;
+}
+
+/* ── 구분선 ── */
+.notion-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+}
+
+/* ── 스크롤 관련 ── */
+[data-testid="ScrollToBottomContainer"] { display: none !important; }
+[data-testid="stChatMessageContainer"] {
+    overflow-anchor: none !important;
+    scroll-behavior: auto !important;
+}
+.stApp, .stApp * {
+    scroll-behavior: auto !important;
+    scroll-margin: 0 !important;
+    scroll-padding: 0 !important;
+}
+[data-testid="stExpander"],
+[data-testid="stExpander"] * {
+    scroll-margin-top: 0 !important;
+    scroll-margin-bottom: 0 !important;
+    scroll-snap-align: none !important;
+}
+[data-testid="stExpanderDetails"] {
+    overflow-anchor: none !important;
+}
+
+/* ── Streamlit 기본 요소 미세 조정 ── */
+.stMarkdown {
+    line-height: 1.65;
+}
+
+/* 마크다운 코드 블록 */
+.stMarkdown pre {
+    border-radius: var(--radius-sm) !important;
+    border: 1px solid var(--border) !important;
+}
+
+/* 마크다운 인라인 코드 */
+.stMarkdown code:not(pre code) {
+    background: rgba(0, 0, 127, 0.05) !important;
+    color: var(--brand-navy) !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    font-size: 0.85em !important;
+}
+
+/* 링크 스타일 */
+.stMarkdown a {
+    color: var(--brand-navy) !important;
+    text-decoration-color: rgba(0, 0, 127, 0.2) !important;
+    text-underline-offset: 3px;
+    transition: text-decoration-color var(--transition);
+}
+.stMarkdown a:hover {
+    text-decoration-color: var(--brand-navy) !important;
+}
+
+/* 에러 메시지 */
+.stAlert {
+    border-radius: var(--radius) !important;
+}
+
+/* ── 반응형 ── */
+@media (max-width: 768px) {
+    .welcome-card {
+        padding: 48px 16px;
+    }
+    .welcome-greeting {
+        font-size: 1.25rem;
+    }
+    .pinecone-badge {
+        top: 12px;
+        right: 12px;
+        font-size: 0.62rem;
+        padding: 4px 10px;
+    }
+}
