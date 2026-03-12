@@ -254,6 +254,40 @@ section[data-testid="stSidebar"] { display: none; }
     font-size: 0.8rem !important;
     -webkit-line-clamp: 2 !important;
 }
+
+/* 라디오 버튼 — 카드형 스타일 */
+div[data-testid="stRadio"] > label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #37352f;
+    margin-bottom: 8px;
+}
+div[data-testid="stRadio"] [role="radiogroup"] {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+div[data-testid="stRadio"] [role="radiogroup"] label {
+    background: #f7f6f3;
+    border: 1.5px solid #e9e9e7;
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 0.88rem;
+    color: #37352f;
+}
+div[data-testid="stRadio"] [role="radiogroup"] label:hover {
+    background: #efeee9;
+    border-color: #d3d3d0;
+}
+div[data-testid="stRadio"] [role="radiogroup"] label[data-checked="true"],
+div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {
+    background: #e8e3ff;
+    border-color: #6c5ce7;
+    color: #4a3cb5;
+    font-weight: 500;
+}
 </style>
 """, unsafe_allow_html=True)
 
