@@ -48,19 +48,20 @@ _SCROLL_TRIGGER_JS = """<script>
     P.__userScrolled=false;
     var c=doc.querySelector('[data-testid="stAppScrollToBottomContainer"]');
     if(c) c.scrollTop=c.scrollHeight;
-    var THRESHOLD=80;
     P.__autoScrollId=P.setInterval(function(){
+        if(P.__userScrolled)return;
         var c=doc.querySelector('[data-testid="stAppScrollToBottomContainer"]');
-        if(!c)return;
-        var atBottom=c.scrollTop+c.clientHeight>=c.scrollHeight-THRESHOLD;
-        if(!P.__userScrolled){
-            c.scrollTop=c.scrollHeight;
-        } else if(atBottom){
-            P.__userScrolled=false;
-            c.scrollTop=c.scrollHeight;
-        }
+        if(c) c.scrollTop=c.scrollHeight;
     },150);
-    P.setTimeout(function(){if(P.__autoScrollId){P.clearInterval(P.__autoScrollId);P.__autoScrollId=null;}},30000);
+})();
+</script>"""
+
+# 스트리밍 완료 후 자동 스크롤 중단
+_SCROLL_STOP_JS = """<script>
+(function(){
+    var P=window.parent;
+    if(P.__autoScrollId){P.clearInterval(P.__autoScrollId);P.__autoScrollId=null;}
+    P.__userScrolled=true;
 })();
 </script>"""
 
@@ -283,6 +284,9 @@ animation:pulse 1.4s ease-in-out infinite,bounce 1.4s ease-in-out infinite}
         if clean_answer != answer:
             answer = clean_answer
             placeholder.markdown(answer)
+
+    # 스트리밍 완료 — 자동 스크롤 중단
+    components.html(_SCROLL_STOP_JS, height=0)
 
     # 관련 주제 버튼 렌더링 (chat_message 밖에서 렌더링하여 버블 침범 방지)
     if related_topics:

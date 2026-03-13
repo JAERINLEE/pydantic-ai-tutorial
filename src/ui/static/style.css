@@ -435,6 +435,19 @@ div[data-testid="stSelectbox"] div[data-baseweb="select"] * {
 }
 
 /* ── 관련 주제 버튼 ── */
+/* stVerticalBlock을 stMarkdownContainer와 동일한 너비로 제한 */
+[data-testid="stVerticalBlock"]:has(.related-topics-row) {
+    width: 100% !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    box-sizing: border-box !important;
+}
+@media (min-width: 864px) {
+    [data-testid="stVerticalBlock"]:has(.related-topics-row) {
+        padding-left: 80px !important;
+        padding-right: 80px !important;
+    }
+}
 .related-topics-row [data-testid="stHorizontalBlock"] {
     gap: 8px !important;
     flex-wrap: wrap !important;
