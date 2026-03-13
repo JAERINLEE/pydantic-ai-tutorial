@@ -156,16 +156,16 @@ for idx, msg in enumerate(st.session_state.messages):
     avatar = _AVATAR_BOT if msg["role"] == "assistant" else _AVATAR_USER
     with st.chat_message(msg["role"], avatar=avatar):
         st.markdown(msg["content"])
-        if msg["role"] == "assistant" and msg.get("related_topics"):
-            with st.container():
-                st.markdown('<div class="related-topics-row">', unsafe_allow_html=True)
-                cols = st.columns(len(msg["related_topics"]) + 1)
-                for col, topic in zip(cols, msg["related_topics"]):
-                    if col.button(f"💡 {topic}", key=f"topic_{idx}_{topic}"):
-                        st.session_state.pending_input = topic
-                        st.session_state.scroll_to_bottom = True
-                        st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
+    if msg["role"] == "assistant" and msg.get("related_topics"):
+        with st.container():
+            st.markdown('<div class="related-topics-row">', unsafe_allow_html=True)
+            cols = st.columns(len(msg["related_topics"]))
+            for col, topic in zip(cols, msg["related_topics"]):
+                if col.button(f"💡 {topic}", key=f"topic_{idx}_{topic}"):
+                    st.session_state.pending_input = topic
+                    st.session_state.scroll_to_bottom = True
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ── 모델 선택 드롭다운 (입력창 바로 위) ──
 selected_model_label = st.selectbox(
@@ -191,6 +191,7 @@ if prompt:
     # 하단 스크롤 트리거 (components.html → iframe 내 JS 실행)
     components.html(_SCROLL_TRIGGER_JS, height=0)
 
+    related_topics = []
     with st.chat_message("assistant", avatar=_AVATAR_BOT):
         placeholder = st.empty()
 
@@ -255,7 +256,6 @@ animation:pulse 1.4s ease-in-out infinite,bounce 1.4s ease-in-out infinite}
             placeholder.markdown(answer)
             return answer, all_msgs
 
-        related_topics = []
         try:
             answer, all_messages = run_async(
                 _stream(prompt, faq_db, st.session_state.pydantic_history)
@@ -278,22 +278,20 @@ animation:pulse 1.4s ease-in-out infinite,bounce 1.4s ease-in-out infinite}
                     answer = f"죄송합니다. 오류가 발생했습니다: {e}"
                 placeholder.markdown(answer)
 
-        # 관련 주제 파싱 및 버튼 렌더링
+        # 관련 주제 파싱
         clean_answer, related_topics = _parse_related_topics(answer)
         if clean_answer != answer:
             answer = clean_answer
             placeholder.markdown(answer)
 
-
-
-        # 관련 주제 버튼 렌더링
-        if related_topics:
-            with st.container():
-                st.markdown('<div class="related-topics-row">', unsafe_allow_html=True)
-                msg_idx = len(st.session_state.messages)
-                cols = st.columns(len(related_topics) + 1)
-                for col, topic in zip(cols, related_topics):
-                    if col.button(f"💡 {topic}", key=f"topic_{msg_idx}_{topic}"):
+    # 관련 주제 버튼 렌더링 (chat_message 밖에서 렌더링하여 버블 침범 방지)
+    if related_topics:
+        with st.container():
+            st.markdown('<div class="related-topics-row">', unsafe_allow_html=True)
+            msg_idx = len(st.session_state.messages)
+            cols = st.columns(len(related_topics))
+            for col, topic in zip(cols, related_topics):
+                if col.button(f"💡 {topic}", key=f"topic_{msg_idx}_{topic}"):
                         st.session_state.pending_input = topic
                         st.session_state.scroll_to_bottom = True
                         st.rerun()

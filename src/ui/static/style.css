@@ -437,28 +437,40 @@ div[data-testid="stSelectbox"] div[data-baseweb="select"] * {
 /* ── 관련 주제 버튼 ── */
 .related-topics-row [data-testid="stHorizontalBlock"] {
     gap: 8px !important;
-    flex-wrap: wrap;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+}
+.related-topics-row [data-testid="stColumn"] {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
+}
+.related-topics-row [data-testid="stColumn"] > div,
+.related-topics-row [data-testid="stColumn"] > div > div {
+    height: 100% !important;
+    display: flex !important;
+    align-items: stretch !important;
 }
 .related-topics-row button {
     width: auto !important;
     min-width: 0 !important;
+    height: 100% !important;
     padding: 6px 16px !important;
     border-radius: 20px !important;
     font-size: 0.82rem !important;
     background: rgba(0, 0, 127, 0.06) !important;
     border: 1px solid rgba(0, 0, 127, 0.15) !important;
     color: var(--brand-navy) !important;
-    white-space: nowrap !important;
     transition: all var(--transition) !important;
+    white-space: normal !important;
+    text-align: center !important;
 }
 .related-topics-row button:hover {
     background: rgba(0, 0, 127, 0.12) !important;
     border-color: var(--brand-navy) !important;
-}
-.related-topics-row [data-testid="stColumn"] {
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: 0 !important;
 }
 
 /* ── 반응형 ── */
